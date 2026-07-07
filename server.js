@@ -4,7 +4,7 @@
 //
 // Routes :
 //   POST /ranger-fichier    { phone, base64, mimeType } → { success, reference }
-//   POST /retrouver-fichier { reference }                → { success, base64 }
+//   POST /retrouver-fichier { reference }                → { success, base64, mimeType }
 //   GET  /health
 //
 // Variables d'environnement :
@@ -46,6 +46,10 @@ const EXTENSIONS_PAR_MIME = {
   'audio/amr': 'amr',
   'video/mp4': 'mp4'
 }
+
+const MIME_PAR_EXTENSION = Object.fromEntries(
+  Object.entries(EXTENSIONS_PAR_MIME).map(([mime, ext]) => [ext, mime])
+)
 
 app.post('/ranger-fichier', async (req, res) => {
   const { phone, base64, mimeType } = req.body || {}
@@ -93,8 +97,11 @@ app.post('/retrouver-fichier', async (req, res) => {
     const buffer = await fs.readFile(cheminComplet)
     const base64 = buffer.toString('base64')
 
-    log('INFO', 'STOCKAGE', `Fichier retrouvé — reference: ${reference} — taille: ${buffer.length} octets`)
-    return res.status(200).json({ success: true, base64 })
+    const extension = path.extname(cheminComplet).slice(1).toLowerCase()
+    const mimeType = MIME_PAR_EXTENSION[extension] || 'application/octet-stream'
+
+    log('INFO', 'STOCKAGE', `Fichier retrouvé — reference: ${reference} — taille: ${buffer.length} octets — mimeType: ${mimeType}`)
+    return res.status(200).json({ success: true, base64, mimeType })
   } catch (err) {
     log('ERROR', 'STOCKAGE', `Échec recherche fichier — reference: ${reference}`, err.message)
     return res.status(404).json({ success: false, erreur: err.message })
